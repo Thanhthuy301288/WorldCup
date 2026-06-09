@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WORLD CUP 2026 V3</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0f172a;color:#fff;margin:0;padding:20px}
+.wrap{max-width:1200px;margin:auto}
+.card{background:#1e293b;border-radius:12px;padding:15px;margin:12px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+button,select,input{padding:8px;border-radius:8px}
+table{width:100%;border-collapse:collapse}
+td,th{border:1px solid #475569;padding:6px}
+h1{text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🏆 WORLD CUP 2026 V3</h1>
+
+<div class="card">
+<label>Mùa giải:</label>
+<input id="season" value="2026">
+<button onclick="loadSeason()">Mở mùa giải</button>
+<button onclick="resetSeason()">Reset mùa</button>
+</div>
+
+<div class="card">
+<h3>🎲 Bốc thăm</h3>
+<select id="player"></select>
+<button onclick="draw()">Quay số</button>
+<div id="drawResult"></div>
+<div id="remain"></div>
+<div id="drawLog"></div>
+</div>
+
+<div id="teams" class="card" style="display:none">
+<div class="grid">
+<div><h3>🔵 Đội A</h3><div id="teamA"></div></div>
+<div><h3>🔴 Đội B</h3><div id="teamB"></div></div>
+</div>
+</div>
+
+<div class="card">
+<h3>⚽ Kết quả trận</h3>
+<select id="stage">
+<option value="20000">Vòng bảng</option>
+<option value="30000">Tứ kết</option>
+<option value="40000">Bán kết</option>
+<option value="50000">Chung kết</option>
+</select>
+A <input id="scoreA" type="number" value="0" min="0">
+B <input id="scoreB" type="number" value="0" min="0">
+<button onclick="saveMatch()">Lưu trận</button>
+<div id="matchInfo"></div>
+</div>
+
+<div class="card">
+<h3>🏅 Danh hiệu</h3>
+<div id="awards"></div>
+</div>
+
+<div class="card">
+<h3>📊 Xếp hạng</h3>
+<div id="ranking"></div>
+</div>
+</div>
+
+<script>
+const players=["Thị Én","Trọng Mãnh","Dũng Đờ Mờ","Tuấn Ô Kê","Thạch Dreamer","Chang Bonsai","Hoàng Alô","Long Hecquyn","Hải Dớ","Thao Pig","Thủy Quái","Kiên LOL"];
+let draws={},remaining=[];
+
+function seasonKey(){return "wcv3_"+document.getElementById('season').value;}
+function stats(){
+ let s=JSON.parse(localStorage.getItem(seasonKey())||"{}");
+ players.forEach(p=>{
+  if(!s[p]) s[p]={played:0,win:0,lose:0,paid:0};
+ });
+ return s;
+}
+function saveStats(s){localStorage.setItem(seasonKey(),JSON.stringify(s));}
+
+function loadSeason(){
+ draws={}; remaining=[1,2,3,4,5,6,7,8,9,10,11,12];
+ document.getElementById("drawLog").innerHTML="";
+ document.getElementById("teams").style.display="none";
+ let sel=document.getElementById("player");
+ sel.innerHTML="";
+ players.forEach(p=>{
+  let o=document.createElement("option");
+  o.value=p;o.textContent=p;sel.appendChild(o);
+ });
+ renderRemain(); renderRanking();
+}
+function renderRemain(){document.getElementById("remain").innerHTML="Số còn lại: "+remaining.join(", ");}
+
+function draw(){
+ let p=document.getElementById("player").value;
+ if(draws[p]) return;
+ let i=Math.floor(Math.random()*remaining.length);
+ let n=remaining.splice(i,1)[0];
+ draws[p]=n;
+ document.getElementById("drawResult").innerHTML="<b>"+p+"</b> nhận số <b>"+n+"</b>";
+ document.getElementById("drawLog").innerHTML+="<div>"+p+" → "+n+"</div>";
+ let sel=document.getElementById("player");
+ sel.remove(sel.selectedIndex);
+ renderRemain();
+ if(Object.keys(draws).length===12) showTeams();
+}
+function showTeams(){
+ let A=[],B=[];
+ Object.entries(draws).forEach(([p,n])=> n<=6?A.push([p,n]):B.push([p,n]));
+ document.getElementById("teamA").innerHTML=A.map(x=>x[0]+" ("+x[1]+")").join("<br>");
+ document.getElementById("teamB").innerHTML=B.map(x=>x[0]+" ("+x[1]+")").join("<br>");
+ document.getElementById("teams").style.display="block";
+}
+function saveMatch(){
+ if(Object.keys(draws).length!==12){alert("Chưa bốc đủ người");return;}
+ let fee=+document.getElementById("stage").value;
+ let a=+document.getElementById("scoreA").value;
+ let b=+document.getElementById("scoreB").value;
+ let s=stats();
+ let A=[],B=[];
+ Object.entries(draws).forEach(([p,n])=> n<=6?A.push(p):B.push(p));
+ if(a>b){
+   A.forEach(p=>{s[p].played++;s[p].win++;});
+   B.forEach(p=>{s[p].played++;s[p].lose++;s[p].paid+=fee;});
+ } else if(b>a){
+   B.forEach(p=>{s[p].played++;s[p].win++;});
+   A.forEach(p=>{s[p].played++;s[p].lose++;s[p].paid+=fee;});
+ } else {
+   [...A,...B].forEach(p=>{s[p].played++;s[p].paid+=fee/2;});
+ }
+ saveStats(s);
+ document.getElementById("matchInfo").innerText="Đã lưu trận.";
+ renderRanking();
+}
+function renderRanking(){
+ let arr=Object.entries(stats()).map(([n,v])=>({name:n,...v,rate:v.played?(v.win/v.played*100):0}));
+ arr.sort((a,b)=>b.win-a.win||b.rate-a.rate);
+ let h="<table><tr><th>#</th><th>Tên</th><th>Trận</th><th>Thắng</th><th>Thua</th><th>%</th><th>Tiền</th></tr>";
+ arr.forEach((r,i)=>h+=`<tr><td>${i+1}</td><td>${r.name}</td><td>${r.played}</td><td>${r.win}</td><td>${r.lose}</td><td>${r.rate.toFixed(1)}</td><td>${r.paid.toLocaleString()}đ</td></tr>`);
+ h+="</table>";
+ document.getElementById("ranking").innerHTML=h;
+
+ let mvp=arr[0];
+ let donor=[...arr].sort((a,b)=>b.paid-a.paid)[0];
+ document.getElementById("awards").innerHTML=
+ `🥇 MVP: ${mvp.name}<br>💸 Nhà tài trợ vàng: ${donor.name}<br>🎭 NPI: ${(mvp.rate||0).toFixed(1)}%`;
+}
+function resetSeason(){
+ localStorage.removeItem(seasonKey());
+ loadSeason();
+}
+loadSeason();
+</script>
+</body>
+</html>
