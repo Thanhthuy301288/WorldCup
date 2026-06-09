@@ -300,33 +300,43 @@ function render(){
 document.getElementById("remain").innerText =
 "Còn lại: " + (state.remaining || []).join(", ");
 
-/* 🔥 FIX DROPDOWN - LUÔN 12 NGƯỜI */
+/* 🔥 DROPDOWN LUÔN 12 NGƯỜI */
 const sel = document.getElementById("player");
 sel.innerHTML = "";
 
 players.forEach(p=>{
-if(!state.draws || !state.draws[p]){
-let o = document.createElement("option");
-o.value = p;
-o.textContent = p;
-sel.appendChild(o);
-}
+  if(!state.draws || !state.draws[p]){
+    let o = document.createElement("option");
+    o.value = p;
+    o.textContent = p;
+    sel.appendChild(o);
+  }
 });
 
-/* history */
+/* HISTORY */
 document.getElementById("history").innerHTML =
-(state.history||[]).slice().reverse()
-.map(h=>`<div>${h.date} | ${h.stage} | ${h.score}</div>`)
+(state.history || [])
+.slice()
+.reverse()
+.map(h => `<div>${h.date} | ${h.stage} | ${h.score}</div>`)
 .join("");
 
-/* teams */
-if(Object.keys(state.draws||{}).length === 12){
-showTeams();
+/* TEAMS */
+if(state.draws && Object.keys(state.draws).length === 12){
+  let A=[], B=[];
+
+  Object.entries(state.draws).forEach(([p,n])=>{
+    (n <= 6 ? A : B).push(`${p} (${n})`);
+  });
+
+  document.getElementById("teamA").innerHTML = A.join("<br>");
+  document.getElementById("teamB").innerHTML = B.join("<br>");
 }
 
-/* ranking (basic MVP) */
+/* RANKING */
 document.getElementById("ranking").innerHTML =
-"🔥 MVP tạm: " + (players[Math.floor(Math.random()*players.length)]);
+"🔥 MVP tạm: " + players[Math.floor(Math.random()*players.length)];
+
 }
 
 /* ================= RESET ================= */
