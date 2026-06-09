@@ -7,9 +7,8 @@
 
 <style>
 body{font-family:Arial;background:#0f172a;color:#fff;margin:0;padding:20px}
-.wrap{max-width:1200px;margin:auto}
+.wrap{max-width:1100px;margin:auto}
 .card{background:#1e293b;padding:15px;margin:12px 0;border-radius:12px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 button,select,input{padding:8px;border-radius:8px}
 table{width:100%;border-collapse:collapse}
 td,th{border:1px solid #475569;padding:6px}
@@ -25,45 +24,15 @@ h1{text-align:center}
 <div class="card">
 <input id="season" value="2026">
 <button onclick="init()">Mở mùa</button>
-
-<!-- 🔐 RESET BỊ KHÓA -->
-<button onclick="askReset()">Reset mùa (ADMIN)</button>
+<button onclick="resetSeason()">Reset</button>
 </div>
 
 <div class="card">
 <h3>🎲 Bốc thăm</h3>
 <select id="player"></select>
 <button onclick="draw()">Quay số</button>
-<div id="drawResult"></div>
+<div id="drawResult">--</div>
 <div id="remain"></div>
-</div>
-
-<div class="card grid">
-<div>
-<h3>🔵 Đội A</h3>
-<div id="teamA"></div>
-</div>
-<div>
-<h3>🔴 Đội B</h3>
-<div id="teamB"></div>
-</div>
-</div>
-
-<div class="card">
-<h3>⚽ Kết quả trận</h3>
-
-<select id="stage">
-<option>Vòng bảng</option>
-<option>Tứ kết</option>
-<option>Bán kết</option>
-<option>Chung kết</option>
-</select>
-
-A <input id="scoreA" type="number" value="0">
-B <input id="scoreB" type="number" value="0">
-
-<button onclick="saveMatch()">Lưu trận</button>
-<div id="msg"></div>
 </div>
 
 <div class="card">
@@ -72,12 +41,12 @@ B <input id="scoreB" type="number" value="0">
 </div>
 
 <div class="card">
-<h3>📊 BXH</h3>
+<h3>📊 Bảng xếp hạng</h3>
 <div id="ranking"></div>
 </div>
 
 <div class="card">
-<h3>📜 Lịch sử trận đấu</h3>
+<h3>📜 Lịch sử</h3>
 <div id="history"></div>
 </div>
 
@@ -89,200 +58,155 @@ B <input id="scoreB" type="number" value="0">
 
 <script>
 
-const firebaseConfig = {
+/* ================= FIREBASE ================= */
+firebase.initializeApp({
    apiKey: "AIzaSyBjS-Gsx1XVNpZ_68VyqFXTFryHzPkX90c",
   authDomain: "worldcup-1562a.firebaseapp.com",
-  projectId: "worldcup-1562a",
-  storageBucket: "worldcup-1562a.firebasestorage.app",
-  messagingSenderId: "905947532699",
-  appId: "1:905947532699:web:1acc98e9bd3864b7d9a53e"
-};
+  projectId: "worldcup-1562a"
+});
 
-firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-/* ================= CONFIG ================= */
-
-const ADMIN_CODE = "luonleo";
-
-const players=[
+/* ================= 12 NGƯỜI ================= */
+const players = [
 "Thị Én","Trọng Mãnh","Dũng Đờ Mờ","Tuấn Ô Kê",
 "Thạch Dreamer","Chang Bonsai","Hoàng Alô",
 "Long Hecquyn","Hải Dớ","Thao Pig","Thủy Quái","Kiên LOL"
 ];
 
-let state = {
-draws:{},
-remaining:[1,2,3,4,5,6,7,8,9,10,11,12],
-history:[]
+/* ================= SAFE STATE ================= */
+function safe(s){
+return {
+draws: s?.draws || {},
+remaining: s?.remaining || [1,2,3,4,5,6,7,8,9,10,11,12],
+history: s?.history || []
 };
+}
 
-let season="2026";
+let state = safe({});
+let season = "2026";
 
-/* ================= INIT ================= */
+/* ================= AUTO LOAD ================= */
+window.onload = () => init();
 
+/* ================= INIT (F5 LÀ LOAD LẠI DATA) ================= */
 async function init(){
 
-season=document.getElementById("season").value;
+season = document.getElementById("season").value;
 
-const ref=db.collection("wc2026").doc(season);
-const doc=await ref.get();
+const ref = db.collection("wc2026").doc(season);
+const doc = await ref.get();
 
-state = doc.exists ? doc.data() : state;
+state = safe(doc.exists ? doc.data() : {});
 
-listen();
+ref.onSnapshot(d=>{
+state = safe(d.data());
 render();
-}
-
-/* ================= REALTIME ================= */
-
-function listen(){
-db.collection("wc2026").doc(season)
-.onSnapshot(doc=>{
-if(doc.exists){
-state=doc.data();
-render();
-}
 });
-}
 
-/* ================= SAVE ================= */
-
-function save(){
-db.collection("wc2026").doc(season).set(state);
+render();
 }
 
 /* ================= DRAW ================= */
-
 function draw(){
 
-let p=document.getElementById("player").value;
+let p = document.getElementById("player").value;
 if(!p || state.draws[p]) return;
 
-let i=0;
-
-let t=setInterval(()=>{
+let i = 0;
+let t = setInterval(()=>{
 
 document.getElementById("drawResult").innerText =
 Math.floor(Math.random()*12)+1;
 
 i++;
 
-if(i>20){
+if(i > 20){
 clearInterval(t);
 
-let idx=Math.floor(Math.random()*state.remaining.length);
-let n=state.remaining.splice(idx,1)[0];
+let n = state.remaining.splice(
+Math.floor(Math.random()*state.remaining.length),1
+)[0];
 
-state.draws[p]=n;
+state.draws[p] = n;
 
 save();
 render();
 }
-
 },60);
 }
 
-/* ================= MATCH ================= */
+/* ================= SAVE (F5 KHÔNG MẤT DATA) ================= */
+function save(){
+db.collection("wc2026").doc(season).set(state);
+}
 
-function saveMatch(){
-
-let a=+document.getElementById("scoreA").value;
-let b=+document.getElementById("scoreB").value;
-let stage=document.getElementById("stage").value;
-
-state.history.push({
-date:new Date().toLocaleString(),
-stage,
-score:`${a}-${b}`,
-draws:JSON.parse(JSON.stringify(state.draws))
-});
-
+/* ================= RESET ================= */
+function resetSeason(){
+state = safe({});
 save();
-
-/* 🔁 RESET TỰ ĐỘNG SAU MỖI TRẬN */
-resetDraw();
-
-document.getElementById("msg").innerText="✔ Đã lưu & reset vòng bốc thăm";
-
 render();
 }
 
-/* ================= RESET DRAW ONLY ================= */
-
-function resetDraw(){
-state.draws = {};
-state.remaining = [1,2,3,4,5,6,7,8,9,10,11,12];
-}
-
 /* ================= STATS ================= */
-
 function calcStats(){
 
-let s={};
-
+let s = {};
 players.forEach(p=>{
-s[p]={played:0,win:0,lose:0};
+s[p] = {played:0,win:0};
 });
 
-state.history.forEach(h=>{
+(state.history || []).forEach(h=>{
+
+let [a,b] = (h.score || "0-0").split("-").map(Number);
 
 let A=[],B=[];
-
-Object.entries(h.draws).forEach(([p,n])=>{
-(n<=6?A:B).push(p);
+Object.entries(h.draws || {}).forEach(([p,n])=>{
+(n<=6 ? A : B).push(p);
 });
-
-let [a,b]=h.score.split("-").map(Number);
 
 if(a>b){
 A.forEach(p=>{s[p].win++;s[p].played++;});
-B.forEach(p=>{s[p].lose++;s[p].played++;});
+B.forEach(p=>{s[p].played++;});
 }
 else if(b>a){
 B.forEach(p=>{s[p].win++;s[p].played++;});
-A.forEach(p=>{s[p].lose++;s[p].played++;});
+A.forEach(p=>{s[p].played++;});
 }
 else{
 [...A,...B].forEach(p=>s[p].played++);
 }
-
 });
 
 return s;
 }
 
 /* ================= AWARDS ================= */
-
 function renderAwards(stats){
 
-let arr=Object.entries(stats).map(([name,v])=>({
-name,...v,
-rate:v.played?(v.win/v.played)*100:0
+let arr = Object.entries(stats).map(([name,v])=>({
+name,
+...v,
+rate: v.played ? (v.win/v.played)*100 : 0
 }));
 
-let king=[...arr].filter(x=>x.played>=2)
-.sort((a,b)=>b.rate-a.rate)[0];
+arr.sort((a,b)=>b.rate-a.rate);
 
-let luck=[...arr].sort((a,b)=>b.win-a.win)[0];
+let king = arr[0];
+let lucky = [...arr].sort((a,b)=>b.win-a.win)[0];
 
-let clown=[...arr].sort((a,b)=>a.rate-b.rate)[0];
-
-document.getElementById("awards").innerHTML=
-`👑 Vua tỷ lệ thắng: ${king?.name||"N/A"}<br>
-🎲 Thánh nhân phẩm: ${luck?.name||"N/A"}<br>
-🤡 Ông hoàng đen đủi: ${clown?.name||"N/A"}`;
+document.getElementById("awards").innerHTML =
+`👑 Vua tỷ lệ thắng: ${king?.name || "N/A"}<br>
+🎲 Thánh nhân phẩm: ${lucky?.name || "N/A"}`;
 }
 
 /* ================= RENDER ================= */
-
 function render(){
 
-document.getElementById("remain").innerText =
-"Còn lại: " + (state.remaining||[]).join(", ");
+state = safe(state);
 
-/* dropdown */
-let sel=document.getElementById("player");
+/* dropdown luôn đủ 12 */
+let sel = document.getElementById("player");
 sel.innerHTML="";
 
 players.forEach(p=>{
@@ -294,60 +218,36 @@ sel.appendChild(o);
 }
 });
 
-/* teams */
-let A=[],B=[];
-
-Object.entries(state.draws).forEach(([p,n])=>{
-(n<=6?A:B).push(`${p} (${n})`);
-});
-
-document.getElementById("teamA").innerHTML=A.join("<br>");
-document.getElementById("teamB").innerHTML=B.join("<br>");
+/* remain */
+document.getElementById("remain").innerText =
+"Còn lại: " + state.remaining.join(", ");
 
 /* history */
 document.getElementById("history").innerHTML =
-(state.history||[]).map(h=>
-`<div>${h.date} | ${h.stage} | ${h.score}</div>`
-).join("");
+(state.history || [])
+.map(h=>`<div>${h.date} | ${h.stage || ""} | ${h.score}</div>`)
+.join("");
 
-let stats=calcStats();
+/* stats + awards */
+let stats = calcStats();
 renderAwards(stats);
 
 /* ranking */
-let arr=Object.entries(stats).map(([name,v])=>({
-name,...v,
-rate:v.played?(v.win/v.played)*100:0
+let arr = Object.entries(stats).map(([name,v])=>({
+name,
+...v,
+rate: v.played ? (v.win/v.played)*100 : 0
 }));
 
 arr.sort((a,b)=>b.rate-a.rate);
 
-document.getElementById("ranking").innerHTML=
-"<table><tr><th>Tên</th><th>Trận</th><th>Win</th><th>%</th></tr>"+
+document.getElementById("ranking").innerHTML =
+"<table><tr><th>Tên</th><th>Trận</th><th>Win</th><th>%</th></tr>" +
 arr.map(r=>
 `<tr><td>${r.name}</td><td>${r.played}</td><td>${r.win}</td><td>${r.rate.toFixed(1)}</td></tr>`
-).join("")+
+).join("") +
 "</table>";
 }
-
-/* ================= ADMIN RESET ================= */
-
-function askReset(){
-let code=prompt("Nhập mã ADMIN để reset mùa:");
-if(code===ADMIN_CODE){
-resetDraw();
-save();
-render();
-alert("✔ Reset thành công!");
-}else{
-alert("❌ Sai mã ADMIN!");
-}
-}
-
-/* expose */
-window.init=init;
-window.draw=draw;
-window.saveMatch=saveMatch;
-window.askReset=askReset;
 
 </script>
 
