@@ -3,38 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WORLD CUP 2026 - HÊN VUI XUI NỘP</title>
+<title>WORLD CUP 2026 - GAME SHOW ONLINE</title>
 
 <style>
-body{font-family:Arial;background:#0f172a;color:#fff;margin:0;padding:20px}
-.wrap{max-width:1200px;margin:auto}
-.card{background:#1e293b;padding:15px;margin:12px 0;border-radius:12px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-button,select,input{padding:8px;border-radius:8px}
+body{
+font-family:Segoe UI;
+background:linear-gradient(135deg,#071428,#0f172a);
+color:#fff;
+margin:0;
+padding:20px;
+}
+
+.wrap{max-width:1100px;margin:auto}
+
+.card{
+background:#1e293b;
+padding:18px;
+margin:12px 0;
+border-radius:16px;
+box-shadow:0 10px 25px rgba(0,0,0,.3);
+}
+
+button,select,input{
+padding:10px;
+border-radius:10px;
+border:none;
+margin:4px;
+cursor:pointer;
+}
+
 h1{text-align:center}
-table{width:100%;border-collapse:collapse}
-td,th{border:1px solid #475569;padding:6px}
-#drawResult{font-size:60px;text-align:center;font-weight:bold}
+
+#drawResult{
+font-size:70px;
+text-align:center;
+font-weight:bold;
+margin:15px;
+transition:0.2s;
+}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:10px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+td,th{
+border:1px solid #475569;
+padding:6px;
+}
 </style>
+
 </head>
 
 <body>
+
 <div class="wrap">
 
-<h1>🏆 WORLD CUP 2026 PRO STABLE</h1>
+<h1>🏆 WORLD CUP 2026<br>🎬 GAME SHOW ONLINE</h1>
 
 <div class="card">
 <input id="season" value="2026">
-<button onclick="init()">Mở mùa</button>
-<button onclick="askReset()">Reset ADMIN</button>
+<button onclick="loadData()">Mở mùa</button>
+<button onclick="resetAll()">Reset</button>
 </div>
 
 <div class="card">
-<h3>🎲 Bốc thăm</h3>
+<h3>🎲 Bốc thăm Game Show</h3>
+
 <select id="player"></select>
-<button onclick="draw()">Quay số</button>
-<div id="drawResult">--</div>
+<button onclick="draw()">QUAY SỐ</button>
+
+<div id="drawResult">?</div>
+
 <div id="remain"></div>
+<div id="log"></div>
 </div>
 
 <div class="card grid">
@@ -42,6 +89,7 @@ td,th{border:1px solid #475569;padding:6px}
 <h3>🔵 Đội A</h3>
 <div id="teamA"></div>
 </div>
+
 <div>
 <h3>🔴 Đội B</h3>
 <div id="teamB"></div>
@@ -50,11 +98,12 @@ td,th{border:1px solid #475569;padding:6px}
 
 <div class="card">
 <h3>⚽ Trận đấu</h3>
+
 <select id="stage">
-<option>Vòng bảng</option>
-<option>Tứ kết</option>
-<option>Bán kết</option>
-<option>Chung kết</option>
+<option value="20000">Vòng bảng</option>
+<option value="30000">Tứ kết</option>
+<option value="40000">Bán kết</option>
+<option value="50000">Chung kết</option>
 </select>
 
 A <input id="scoreA" type="number" value="0">
@@ -65,31 +114,33 @@ B <input id="scoreB" type="number" value="0">
 </div>
 
 <div class="card">
-<h3>🏆 Danh hiệu</h3>
-<div id="awards"></div>
-</div>
-
-<div class="card">
-<h3>📊 BXH</h3>
-<div id="ranking"></div>
-</div>
-
-<div class="card">
 <h3>📜 Lịch sử</h3>
 <div id="history"></div>
 </div>
 
+<div class="card">
+<h3>🏅 BXH</h3>
+<div id="ranking"></div>
 </div>
 
-<!-- FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</div>
 
-<script>
+<script type="module">
 
-/* ================= CONFIG ================= */
+/* ================= FIREBASE ================= */
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+getFirestore,
+doc,
+getDoc,
+setDoc,
+onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+/* 🔥 FIREBASE CONFIG - THAY CHỖ NÀY */
 const firebaseConfig = {
-  apiKey: "AIzaSyBjS-Gsx1XVNpZ_68VyqFXTFryHzPkX90c",
+ apiKey: "AIzaSyBjS-Gsx1XVNpZ_68VyqFXTFryHzPkX90c",
   authDomain: "worldcup-1562a.firebaseapp.com",
   projectId: "worldcup-1562a",
   storageBucket: "worldcup-1562a.firebasestorage.app",
@@ -97,10 +148,10 @@ const firebaseConfig = {
   appId: "1:905947532699:web:1acc98e9bd3864b7d9a53e"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-const ADMIN_CODE="admin123";
+/* ================= DATA ================= */
 
 const players=[
 "Thị Én","Trọng Mãnh","Dũng Đờ Mờ","Tuấn Ô Kê",
@@ -108,158 +159,140 @@ const players=[
 "Long Hecquyn","Hải Dớ","Thao Pig","Thủy Quái","Kiên LOL"
 ];
 
-/* ================= SAFE CORE (QUAN TRỌNG NHẤT) ================= */
-function safe(s){
-return {
-draws: s?.draws || {},
-remaining: s?.remaining || [1,2,3,4,5,6,7,8,9,10,11,12],
-history: s?.history || []
+let state = {
+draws:{},
+remaining:[1,2,3,4,5,6,7,8,9,10,11,12],
+history:[],
+stats:{}
 };
+
+let season = "2026";
+
+/* ================= FIREBASE LOAD ================= */
+
+async function loadData(){
+
+season = document.getElementById("season").value;
+
+const ref = doc(db,"wc2026",season);
+const snap = await getDoc(ref);
+
+if(snap.exists()){
+state = snap.data();
+} else {
+await setDoc(ref,state);
 }
 
-let state=safe({});
-let season="2026";
-let isRolling=false;
-
-/* ================= INIT + REALTIME ================= */
-async function init(){
-season=document.getElementById("season").value;
-
-const ref=db.collection("wc2026").doc(season);
-const doc=await ref.get();
-
-state = doc.exists ? safe(doc.data()) : safe({});
-
-listen();
 render();
+listenRealtime();
 }
 
-function listen(){
-db.collection("wc2026").doc(season)
-.onSnapshot(doc=>{
-state = safe(doc.data());
+function listenRealtime(){
+const ref = doc(db,"wc2026",season);
+
+onSnapshot(ref,(snap)=>{
+if(snap.exists()){
+state = snap.data();
 render();
+}
 });
 }
 
 /* ================= SAVE ================= */
-function save(){
-db.collection("wc2026").doc(season).set(state);
+
+async function save(){
+const ref = doc(db,"wc2026",season);
+await setDoc(ref,state);
 }
 
-/* ================= DRAW ================= */
-function draw(){
-if(isRolling) return;
+/* ================= DRAW GAME SHOW ================= */
 
-let p=document.getElementById("player").value;
+function draw(){
+
+const sel = document.getElementById("player");
+const p = sel.value;
+
 if(!p || state.draws[p]) return;
 
-isRolling=true;
+let box = document.getElementById("drawResult");
 
-let i=0;
-let t=setInterval(()=>{
-document.getElementById("drawResult").innerText =
-Math.floor(Math.random()*12)+1;
+let i = 0;
+
+let interval = setInterval(()=>{
+
+box.innerHTML = Math.floor(Math.random()*12)+1;
 
 i++;
-if(i>20){
-clearInterval(t);
 
-if(!state.remaining.length){
-state.remaining=[1,2,3,4,5,6,7,8,9,10,11,12];
+if(i > 25){
+
+clearInterval(interval);
+
+const idx = Math.floor(Math.random()*state.remaining.length);
+const n = state.remaining.splice(idx,1)[0];
+
+state.draws[p] = n;
+
+document.getElementById("log").innerHTML +=
+`<div>${p} → ${n}</div>`;
+
+sel.remove(sel.selectedIndex);
+
+if(state.remaining.length === 0){
+showTeams();
 }
-
-let n=state.remaining.splice(
-Math.floor(Math.random()*state.remaining.length),1
-)[0];
-
-state.draws[p]=n;
 
 save();
 render();
-isRolling=false;
 }
-},60);
+
+},80);
+}
+
+/* ================= TEAMS ================= */
+
+function showTeams(){
+
+let A=[],B=[];
+
+Object.entries(state.draws).forEach(([p,n])=>{
+(n<=6 ? A : B).push(`${p} (${n})`);
+});
+
+document.getElementById("teamA").innerHTML = A.join("<br>");
+document.getElementById("teamB").innerHTML = B.join("<br>");
 }
 
 /* ================= MATCH ================= */
+
 function saveMatch(){
 
-let a=+document.getElementById("scoreA").value;
-let b=+document.getElementById("scoreB").value;
-let stage=document.getElementById("stage").value;
+let a = +document.getElementById("scoreA").value;
+let b = +document.getElementById("scoreB").value;
+let stage = document.getElementById("stage").selectedOptions[0].text;
 
 state.history.push({
 date:new Date().toLocaleString(),
-stage,
 score:`${a}-${b}`,
-draws:JSON.parse(JSON.stringify(state.draws))
+stage
 });
 
-resetDraw();
 save();
 render();
 
-document.getElementById("msg").innerText="✔ Đã lưu + reset vòng bốc thăm";
-}
-
-/* ================= RESET DRAW ================= */
-function resetDraw(){
-state.draws={};
-state.remaining=[1,2,3,4,5,6,7,8,9,10,11,12];
-}
-
-/* ================= STATS ================= */
-function calcStats(){
-let s={};
-players.forEach(p=>s[p]={played:0,win:0,lose:0});
-
-(state.history||[]).forEach(h=>{
-let A=[],B=[];
-Object.entries(h.draws||{}).forEach(([p,n])=>{
-(n<=6?A:B).push(p);
-});
-
-let [a,b]=(h.score||"0-0").split("-").map(Number);
-
-if(a>b){
-A.forEach(p=>{s[p].win++;s[p].played++;});
-B.forEach(p=>{s[p].lose++;s[p].played++;});
-}else if(b>a){
-B.forEach(p=>{s[p].win++;s[p].played++;});
-A.forEach(p=>{s[p].lose++;s[p].played++;});
-}else{
-[...A,...B].forEach(p=>s[p].played++);
-}
-});
-return s;
-}
-
-/* ================= AWARDS ================= */
-function renderAwards(stats){
-
-let arr=Object.entries(stats).map(([name,v])=>({
-name,...v,
-rate:v.played?(v.win/v.played)*100:0
-}));
-
-let king=[...arr].filter(x=>x.played>=2).sort((a,b)=>b.rate-a.rate)[0];
-let luck=[...arr].sort((a,b)=>b.win-a.win)[0];
-let clown=[...arr].sort((a,b)=>a.rate-b.rate)[0];
-
-document.getElementById("awards").innerHTML=
-`👑 Vua thắng: ${king?.name||"N/A"}<br>
-🎲 May mắn: ${luck?.name||"N/A"}<br>
-🤡 Đen đủi: ${clown?.name||"N/A"}`;
+document.getElementById("msg").innerText="✔ Đã lưu trận";
 }
 
 /* ================= RENDER ================= */
+
 function render(){
 
-state=safe(state);
+/* remaining */
+document.getElementById("remain").innerText =
+"Còn lại: " + (state.remaining || []).join(", ");
 
-/* dropdown (LUÔN 12 NGƯỜI) */
-let sel=document.getElementById("player");
+/* player list */
+const sel = document.getElementById("player");
 sel.innerHTML="";
 
 players.forEach(p=>{
@@ -271,62 +304,44 @@ sel.appendChild(o);
 }
 });
 
-/* teams */
-let A=[],B=[];
-Object.entries(state.draws).forEach(([p,n])=>{
-(n<=6?A:B).push(`${p} (${n})`);
-});
-
-document.getElementById("teamA").innerHTML=A.join("<br>");
-document.getElementById("teamB").innerHTML=B.join("<br>");
-
-document.getElementById("remain").innerText=
-"Còn lại: "+state.remaining.join(", ");
-
 /* history */
-document.getElementById("history").innerHTML=
-(state.history||[])
-.slice().reverse()
+document.getElementById("history").innerHTML =
+(state.history||[]).slice().reverse()
 .map(h=>`<div>${h.date} | ${h.stage} | ${h.score}</div>`)
 .join("");
 
-let stats=calcStats();
-renderAwards(stats);
-
-/* ranking */
-let arr=Object.entries(stats).map(([name,v])=>({
-name,...v,
-rate:v.played?(v.win/v.played)*100:0
-}));
-
-arr.sort((a,b)=>b.rate-a.rate);
-
-document.getElementById("ranking").innerHTML=
-"<table><tr><th>Tên</th><th>Trận</th><th>Win</th><th>%</th></tr>"+
-arr.map(r=>
-`<tr><td>${r.name}</td><td>${r.played}</td><td>${r.win}</td><td>${r.rate.toFixed(1)}</td></tr>`
-).join("")+
-"</table>";
+/* teams */
+if(Object.keys(state.draws||{}).length === 12){
+showTeams();
 }
 
-/* ADMIN */
-function askReset(){
-let code=prompt("ADMIN CODE:");
-if(code!==ADMIN_CODE){
-alert("Sai!");
-return;
+/* ranking (basic MVP) */
+document.getElementById("ranking").innerHTML =
+"🔥 MVP tạm: " + (players[Math.floor(Math.random()*players.length)]);
 }
-resetDraw();
-save();
+
+/* ================= RESET ================= */
+
+async function resetAll(){
+state = {
+draws:{},
+remaining:[1,2,3,4,5,6,7,8,9,10,11,12],
+history:[],
+stats:{}
+};
+await save();
 render();
-alert("Reset OK");
 }
 
-window.init=init;
-window.draw=draw;
-window.saveMatch=saveMatch;
-window.askReset=askReset;
+/* init */
+loadData();
+
+window.draw = draw;
+window.saveMatch = saveMatch;
+window.loadData = loadData;
+window.resetAll = resetAll;
 
 </script>
+
 </body>
 </html>
