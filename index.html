@@ -7,24 +7,26 @@
 
 <style>
 body{font-family:Arial;background:#0f172a;color:#fff;margin:0;padding:20px}
-.wrap{max-width:1100px;margin:auto}
+.wrap{max-width:1200px;margin:auto}
 .card{background:#1e293b;padding:15px;margin:12px 0;border-radius:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 button,select,input{padding:8px;border-radius:8px}
+h1{text-align:center}
 table{width:100%;border-collapse:collapse}
 td,th{border:1px solid #475569;padding:6px}
-h1{text-align:center}
+#drawResult{font-size:60px;text-align:center;font-weight:bold}
 </style>
 </head>
 
 <body>
 <div class="wrap">
 
-<h1>🏆 WORLD CUP 2026 </h1>
+<h1>🏆 WORLD CUP 2026 PRO STABLE</h1>
 
 <div class="card">
 <input id="season" value="2026">
 <button onclick="init()">Mở mùa</button>
-<button onclick="resetSeason()">Reset</button>
+<button onclick="askReset()">Reset ADMIN</button>
 </div>
 
 <div class="card">
@@ -35,13 +37,40 @@ h1{text-align:center}
 <div id="remain"></div>
 </div>
 
+<div class="card grid">
+<div>
+<h3>🔵 Đội A</h3>
+<div id="teamA"></div>
+</div>
+<div>
+<h3>🔴 Đội B</h3>
+<div id="teamB"></div>
+</div>
+</div>
+
+<div class="card">
+<h3>⚽ Trận đấu</h3>
+<select id="stage">
+<option>Vòng bảng</option>
+<option>Tứ kết</option>
+<option>Bán kết</option>
+<option>Chung kết</option>
+</select>
+
+A <input id="scoreA" type="number" value="0">
+B <input id="scoreB" type="number" value="0">
+
+<button onclick="saveMatch()">Lưu trận</button>
+<div id="msg"></div>
+</div>
+
 <div class="card">
 <h3>🏆 Danh hiệu</h3>
 <div id="awards"></div>
 </div>
 
 <div class="card">
-<h3>📊 Bảng xếp hạng</h3>
+<h3>📊 BXH</h3>
 <div id="ranking"></div>
 </div>
 
@@ -52,29 +81,34 @@ h1{text-align:center}
 
 </div>
 
-<!-- Firebase -->
+<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
 
-/* ================= FIREBASE ================= */
-firebase.initializeApp({
-   apiKey: "AIzaSyBjS-Gsx1XVNpZ_68VyqFXTFryHzPkX90c",
+/* ================= CONFIG ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBjS-Gsx1XVNpZ_68VyqFXTFryHzPkX90c",
   authDomain: "worldcup-1562a.firebaseapp.com",
-  projectId: "worldcup-1562a"
-});
+  projectId: "worldcup-1562a",
+  storageBucket: "worldcup-1562a.firebasestorage.app",
+  messagingSenderId: "905947532699",
+  appId: "1:905947532699:web:1acc98e9bd3864b7d9a53e"
+};
 
+firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-/* ================= 12 NGƯỜI ================= */
-const players = [
+const ADMIN_CODE="admin123";
+
+const players=[
 "Thị Én","Trọng Mãnh","Dũng Đờ Mờ","Tuấn Ô Kê",
 "Thạch Dreamer","Chang Bonsai","Hoàng Alô",
 "Long Hecquyn","Hải Dớ","Thao Pig","Thủy Quái","Kiên LOL"
 ];
 
-/* ================= SAFE STATE ================= */
+/* ================= SAFE CORE (QUAN TRỌNG NHẤT) ================= */
 function safe(s){
 return {
 draws: s?.draws || {},
@@ -83,130 +117,149 @@ history: s?.history || []
 };
 }
 
-let state = safe({});
-let season = "2026";
+let state=safe({});
+let season="2026";
+let isRolling=false;
 
-/* ================= AUTO LOAD ================= */
-window.onload = () => init();
-
-/* ================= INIT (F5 LÀ LOAD LẠI DATA) ================= */
+/* ================= INIT + REALTIME ================= */
 async function init(){
+season=document.getElementById("season").value;
 
-season = document.getElementById("season").value;
+const ref=db.collection("wc2026").doc(season);
+const doc=await ref.get();
 
-const ref = db.collection("wc2026").doc(season);
-const doc = await ref.get();
+state = doc.exists ? safe(doc.data()) : safe({});
 
-state = safe(doc.exists ? doc.data() : {});
+listen();
+render();
+}
 
-ref.onSnapshot(d=>{
-state = safe(d.data());
+function listen(){
+db.collection("wc2026").doc(season)
+.onSnapshot(doc=>{
+state = safe(doc.data());
 render();
 });
-
-render();
 }
 
-/* ================= DRAW ================= */
-function draw(){
-
-let p = document.getElementById("player").value;
-if(!p || state.draws[p]) return;
-
-let i = 0;
-let t = setInterval(()=>{
-
-document.getElementById("drawResult").innerText =
-Math.floor(Math.random()*12)+1;
-
-i++;
-
-if(i > 20){
-clearInterval(t);
-
-let n = state.remaining.splice(
-Math.floor(Math.random()*state.remaining.length),1
-)[0];
-
-state.draws[p] = n;
-
-save();
-render();
-}
-},60);
-}
-
-/* ================= SAVE (F5 KHÔNG MẤT DATA) ================= */
+/* ================= SAVE ================= */
 function save(){
 db.collection("wc2026").doc(season).set(state);
 }
 
-/* ================= RESET ================= */
-function resetSeason(){
-state = safe({});
+/* ================= DRAW ================= */
+function draw(){
+if(isRolling) return;
+
+let p=document.getElementById("player").value;
+if(!p || state.draws[p]) return;
+
+isRolling=true;
+
+let i=0;
+let t=setInterval(()=>{
+document.getElementById("drawResult").innerText =
+Math.floor(Math.random()*12)+1;
+
+i++;
+if(i>20){
+clearInterval(t);
+
+if(!state.remaining.length){
+state.remaining=[1,2,3,4,5,6,7,8,9,10,11,12];
+}
+
+let n=state.remaining.splice(
+Math.floor(Math.random()*state.remaining.length),1
+)[0];
+
+state.draws[p]=n;
+
 save();
 render();
+isRolling=false;
+}
+},60);
+}
+
+/* ================= MATCH ================= */
+function saveMatch(){
+
+let a=+document.getElementById("scoreA").value;
+let b=+document.getElementById("scoreB").value;
+let stage=document.getElementById("stage").value;
+
+state.history.push({
+date:new Date().toLocaleString(),
+stage,
+score:`${a}-${b}`,
+draws:JSON.parse(JSON.stringify(state.draws))
+});
+
+resetDraw();
+save();
+render();
+
+document.getElementById("msg").innerText="✔ Đã lưu + reset vòng bốc thăm";
+}
+
+/* ================= RESET DRAW ================= */
+function resetDraw(){
+state.draws={};
+state.remaining=[1,2,3,4,5,6,7,8,9,10,11,12];
 }
 
 /* ================= STATS ================= */
 function calcStats(){
+let s={};
+players.forEach(p=>s[p]={played:0,win:0,lose:0});
 
-let s = {};
-players.forEach(p=>{
-s[p] = {played:0,win:0};
-});
-
-(state.history || []).forEach(h=>{
-
-let [a,b] = (h.score || "0-0").split("-").map(Number);
-
+(state.history||[]).forEach(h=>{
 let A=[],B=[];
-Object.entries(h.draws || {}).forEach(([p,n])=>{
-(n<=6 ? A : B).push(p);
+Object.entries(h.draws||{}).forEach(([p,n])=>{
+(n<=6?A:B).push(p);
 });
+
+let [a,b]=(h.score||"0-0").split("-").map(Number);
 
 if(a>b){
 A.forEach(p=>{s[p].win++;s[p].played++;});
-B.forEach(p=>{s[p].played++;});
-}
-else if(b>a){
+B.forEach(p=>{s[p].lose++;s[p].played++;});
+}else if(b>a){
 B.forEach(p=>{s[p].win++;s[p].played++;});
-A.forEach(p=>{s[p].played++;});
-}
-else{
+A.forEach(p=>{s[p].lose++;s[p].played++;});
+}else{
 [...A,...B].forEach(p=>s[p].played++);
 }
 });
-
 return s;
 }
 
 /* ================= AWARDS ================= */
 function renderAwards(stats){
 
-let arr = Object.entries(stats).map(([name,v])=>({
-name,
-...v,
-rate: v.played ? (v.win/v.played)*100 : 0
+let arr=Object.entries(stats).map(([name,v])=>({
+name,...v,
+rate:v.played?(v.win/v.played)*100:0
 }));
 
-arr.sort((a,b)=>b.rate-a.rate);
+let king=[...arr].filter(x=>x.played>=2).sort((a,b)=>b.rate-a.rate)[0];
+let luck=[...arr].sort((a,b)=>b.win-a.win)[0];
+let clown=[...arr].sort((a,b)=>a.rate-b.rate)[0];
 
-let king = arr[0];
-let lucky = [...arr].sort((a,b)=>b.win-a.win)[0];
-
-document.getElementById("awards").innerHTML =
-`👑 Vua tỷ lệ thắng: ${king?.name || "N/A"}<br>
-🎲 Thánh nhân phẩm: ${lucky?.name || "N/A"}`;
+document.getElementById("awards").innerHTML=
+`👑 Vua thắng: ${king?.name||"N/A"}<br>
+🎲 May mắn: ${luck?.name||"N/A"}<br>
+🤡 Đen đủi: ${clown?.name||"N/A"}`;
 }
 
 /* ================= RENDER ================= */
 function render(){
 
-state = safe(state);
+state=safe(state);
 
-/* dropdown luôn đủ 12 */
-let sel = document.getElementById("player");
+/* dropdown (LUÔN 12 NGƯỜI) */
+let sel=document.getElementById("player");
 sel.innerHTML="";
 
 players.forEach(p=>{
@@ -218,38 +271,62 @@ sel.appendChild(o);
 }
 });
 
-/* remain */
-document.getElementById("remain").innerText =
-"Còn lại: " + state.remaining.join(", ");
+/* teams */
+let A=[],B=[];
+Object.entries(state.draws).forEach(([p,n])=>{
+(n<=6?A:B).push(`${p} (${n})`);
+});
+
+document.getElementById("teamA").innerHTML=A.join("<br>");
+document.getElementById("teamB").innerHTML=B.join("<br>");
+
+document.getElementById("remain").innerText=
+"Còn lại: "+state.remaining.join(", ");
 
 /* history */
-document.getElementById("history").innerHTML =
-(state.history || [])
-.map(h=>`<div>${h.date} | ${h.stage || ""} | ${h.score}</div>`)
+document.getElementById("history").innerHTML=
+(state.history||[])
+.slice().reverse()
+.map(h=>`<div>${h.date} | ${h.stage} | ${h.score}</div>`)
 .join("");
 
-/* stats + awards */
-let stats = calcStats();
+let stats=calcStats();
 renderAwards(stats);
 
 /* ranking */
-let arr = Object.entries(stats).map(([name,v])=>({
-name,
-...v,
-rate: v.played ? (v.win/v.played)*100 : 0
+let arr=Object.entries(stats).map(([name,v])=>({
+name,...v,
+rate:v.played?(v.win/v.played)*100:0
 }));
 
 arr.sort((a,b)=>b.rate-a.rate);
 
-document.getElementById("ranking").innerHTML =
-"<table><tr><th>Tên</th><th>Trận</th><th>Win</th><th>%</th></tr>" +
+document.getElementById("ranking").innerHTML=
+"<table><tr><th>Tên</th><th>Trận</th><th>Win</th><th>%</th></tr>"+
 arr.map(r=>
 `<tr><td>${r.name}</td><td>${r.played}</td><td>${r.win}</td><td>${r.rate.toFixed(1)}</td></tr>`
-).join("") +
+).join("")+
 "</table>";
 }
 
-</script>
+/* ADMIN */
+function askReset(){
+let code=prompt("ADMIN CODE:");
+if(code!==ADMIN_CODE){
+alert("Sai!");
+return;
+}
+resetDraw();
+save();
+render();
+alert("Reset OK");
+}
 
+window.init=init;
+window.draw=draw;
+window.saveMatch=saveMatch;
+window.askReset=askReset;
+
+</script>
 </body>
 </html>
