@@ -341,9 +341,7 @@ function renderRanking(){
  document.getElementById("awards").innerHTML=
  `🥇 MVP: ${mvp.name}<br>💸 Nhà tài trợ vàng: ${donor.name}<br>🎭 NPI: ${(mvp.rate||0).toFixed(1)}%`;
 }
-function resetSeason(){
- localStorage.removeItem(seasonKey());
- function renderHistory(){
+function renderHistory(){
 
  let history =
  JSON.parse(
@@ -359,34 +357,39 @@ function resetSeason(){
  .reverse()
  .forEach(h=>{
 
-   html+=
-   "<div>"
-   +
-   h.date
-   +
-   " | "
-   +
-   h.stage
-   +
-   " | "
-   +
-   h.score
-   +
-   "</div>";
+   html += `
+   <div>
+   ${h.date}
+   |
+   ${h.stage}
+   |
+   ${h.score}
+   </div>
+   `;
 
  });
 
  document
- .getElementById(
- "history"
- )
- .innerHTML=
- html;
+ .getElementById("history")
+ .innerHTML = html;
 
 }
+function resetSeason(){
+function resetSeason(){
+
+ localStorage.removeItem(
+ seasonKey()
+ );
+
+ localStorage.removeItem(
+ seasonKey()+"_history"
+ );
+
  loadSeason();
-}
-loadSeason();
+
+};
+  renderRemain();
+ renderRanking();
  renderHistory();
 </script>
 </body>
