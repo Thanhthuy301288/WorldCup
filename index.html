@@ -3,65 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WORLD CUP 2026 - TV SHOW PRO MAX</title>
+<title>WORLD CUP 2026 - HÊN VUI XUI NỘP</title>
 
 <style>
-body{
-font-family:Arial;
-background:#0f172a;
-color:#fff;
-margin:0;
-padding:20px;
-}
-
+body{font-family:Arial;background:#0f172a;color:#fff;margin:0;padding:20px}
 .wrap{max-width:1200px;margin:auto}
 .card{background:#1e293b;padding:15px;margin:12px 0;border-radius:12px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 button,select,input{padding:8px;border-radius:8px}
-
+table{width:100%;border-collapse:collapse}
+td,th{border:1px solid #475569;padding:6px}
 h1{text-align:center}
-
-/* LED BOARD */
-#drawResult{
-font-size:90px;
-text-align:center;
-font-weight:bold;
-letter-spacing:10px;
-color:#22c55e;
-text-shadow:0 0 20px #22c55e;
-transition:0.1s;
-}
-
-/* ANIMATION FLASH */
-.flash{
-animation:flash 0.1s infinite;
-}
-@keyframes flash{
-0%{opacity:1}
-50%{opacity:0.4}
-100%{opacity:1}
-}
 </style>
 </head>
 
 <body>
 <div class="wrap">
 
-<h1>🏆 WORLD CUP 2026 - GAME SHOW LIVE</h1>
+<h1>🏆 WORLD CUP 2026 </h1>
 
 <div class="card">
 <input id="season" value="2026">
 <button onclick="init()">Mở mùa</button>
-<button onclick="askReset()">Reset (ADMIN)</button>
+
+<!-- 🔐 RESET BỊ KHÓA -->
+<button onclick="askReset()">Reset mùa (ADMIN)</button>
 </div>
 
 <div class="card">
-<h3>🎲 BỐC THĂM LIVE</h3>
-
+<h3>🎲 Bốc thăm</h3>
 <select id="player"></select>
-<button onclick="draw()">QUAY SỐ</button>
-
-<div id="drawResult">--</div>
+<button onclick="draw()">Quay số</button>
+<div id="drawResult"></div>
 <div id="remain"></div>
 </div>
 
@@ -77,8 +50,20 @@ animation:flash 0.1s infinite;
 </div>
 
 <div class="card">
-<h3>📊 LIVE LED STATUS</h3>
-<div id="liveBoard"></div>
+<h3>⚽ Kết quả trận</h3>
+
+<select id="stage">
+<option>Vòng bảng</option>
+<option>Tứ kết</option>
+<option>Bán kết</option>
+<option>Chung kết</option>
+</select>
+
+A <input id="scoreA" type="number" value="0">
+B <input id="scoreB" type="number" value="0">
+
+<button onclick="saveMatch()">Lưu trận</button>
+<div id="msg"></div>
 </div>
 
 <div class="card">
@@ -87,19 +72,23 @@ animation:flash 0.1s infinite;
 </div>
 
 <div class="card">
-<h3>📜 Lịch sử</h3>
+<h3>📊 BXH</h3>
+<div id="ranking"></div>
+</div>
+
+<div class="card">
+<h3>📜 Lịch sử trận đấu</h3>
 <div id="history"></div>
 </div>
 
 </div>
 
-<!-- FIREBASE -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
 
-/* ================= FIREBASE ================= */
 const firebaseConfig = {
    apiKey: "AIzaSyBjS-Gsx1XVNpZ_68VyqFXTFryHzPkX90c",
   authDomain: "worldcup-1562a.firebaseapp.com",
@@ -114,7 +103,7 @@ const db = firebase.firestore();
 
 /* ================= CONFIG ================= */
 
-const ADMIN_CODE="luonleo";
+const ADMIN_CODE = "luonleo";
 
 const players=[
 "Thị Én","Trọng Mãnh","Dũng Đờ Mờ","Tuấn Ô Kê",
@@ -122,19 +111,13 @@ const players=[
 "Long Hecquyn","Hải Dớ","Thao Pig","Thủy Quái","Kiên LOL"
 ];
 
-let state;
-let season="2026";
-let isRolling=false;
-
-/* ================= SAFE ================= */
-
-function safe(s){
-return {
-draws:s?.draws||{},
-remaining:s?.remaining||[1,2,3,4,5,6,7,8,9,10,11,12],
-history:s?.history||[]
+let state = {
+draws:{},
+remaining:[1,2,3,4,5,6,7,8,9,10,11,12],
+history:[]
 };
-}
+
+let season="2026";
 
 /* ================= INIT ================= */
 
@@ -142,10 +125,10 @@ async function init(){
 
 season=document.getElementById("season").value;
 
-let ref=db.collection("wc2026").doc(season);
-let doc=await ref.get();
+const ref=db.collection("wc2026").doc(season);
+const doc=await ref.get();
 
-state=doc.exists?safe(doc.data()):safe({});
+state = doc.exists ? doc.data() : state;
 
 listen();
 render();
@@ -156,8 +139,10 @@ render();
 function listen(){
 db.collection("wc2026").doc(season)
 .onSnapshot(doc=>{
-state=safe(doc.data());
+if(doc.exists){
+state=doc.data();
 render();
+}
 });
 }
 
@@ -167,93 +152,134 @@ function save(){
 db.collection("wc2026").doc(season).set(state);
 }
 
-/* ================= SOUND ================= */
-
-function beep(freq,time){
-let ctx=new AudioContext();
-let osc=ctx.createOscillator();
-osc.frequency.value=freq;
-osc.connect(ctx.destination);
-osc.start();
-setTimeout(()=>osc.stop(),time);
-}
-
-/* ================= DRAW ANIMATION ================= */
+/* ================= DRAW ================= */
 
 function draw(){
-
-if(isRolling) return;
 
 let p=document.getElementById("player").value;
 if(!p || state.draws[p]) return;
 
-isRolling=true;
-
-document.getElementById("drawResult").classList.add("flash");
-
-beep(600,100);
-
 let i=0;
 
-let timer=setInterval(()=>{
+let t=setInterval(()=>{
 
-let fake=Math.floor(Math.random()*12)+1;
-document.getElementById("drawResult").innerText=fake;
-
-beep(200,30);
+document.getElementById("drawResult").innerText =
+Math.floor(Math.random()*12)+1;
 
 i++;
 
-if(i>30){
+if(i>20){
+clearInterval(t);
 
-clearInterval(timer);
-
-let n=state.remaining.splice(
-Math.floor(Math.random()*state.remaining.length),1
-)[0];
+let idx=Math.floor(Math.random()*state.remaining.length);
+let n=state.remaining.splice(idx,1)[0];
 
 state.draws[p]=n;
 
-document.getElementById("drawResult").classList.remove("flash");
-
-beep(900,200);
-
 save();
 render();
-
-isRolling=false;
 }
 
-},80);
-}
-
-/* ================= RESET ================= */
-
-function resetDraw(){
-state.draws={};
-state.remaining=[1,2,3,4,5,6,7,8,9,10,11,12];
+},60);
 }
 
 /* ================= MATCH ================= */
 
-function askReset(){
-let code=prompt("ADMIN CODE?");
-if(code!==ADMIN_CODE){
-alert("SAI CODE!");
-return;
+function saveMatch(){
+
+let a=+document.getElementById("scoreA").value;
+let b=+document.getElementById("scoreB").value;
+let stage=document.getElementById("stage").value;
+
+state.history.push({
+date:new Date().toLocaleString(),
+stage,
+score:`${a}-${b}`,
+draws:JSON.parse(JSON.stringify(state.draws))
+});
+
+save();
+
+/* 🔁 RESET TỰ ĐỘNG SAU MỖI TRẬN */
+resetDraw();
+
+document.getElementById("msg").innerText="✔ Đã lưu & reset vòng bốc thăm";
+
+render();
 }
 
-resetDraw();
-save();
-render();
-alert("RESET OK");
+/* ================= RESET DRAW ONLY ================= */
+
+function resetDraw(){
+state.draws = {};
+state.remaining = [1,2,3,4,5,6,7,8,9,10,11,12];
+}
+
+/* ================= STATS ================= */
+
+function calcStats(){
+
+let s={};
+
+players.forEach(p=>{
+s[p]={played:0,win:0,lose:0};
+});
+
+state.history.forEach(h=>{
+
+let A=[],B=[];
+
+Object.entries(h.draws).forEach(([p,n])=>{
+(n<=6?A:B).push(p);
+});
+
+let [a,b]=h.score.split("-").map(Number);
+
+if(a>b){
+A.forEach(p=>{s[p].win++;s[p].played++;});
+B.forEach(p=>{s[p].lose++;s[p].played++;});
+}
+else if(b>a){
+B.forEach(p=>{s[p].win++;s[p].played++;});
+A.forEach(p=>{s[p].lose++;s[p].played++;});
+}
+else{
+[...A,...B].forEach(p=>s[p].played++);
+}
+
+});
+
+return s;
+}
+
+/* ================= AWARDS ================= */
+
+function renderAwards(stats){
+
+let arr=Object.entries(stats).map(([name,v])=>({
+name,...v,
+rate:v.played?(v.win/v.played)*100:0
+}));
+
+let king=[...arr].filter(x=>x.played>=2)
+.sort((a,b)=>b.rate-a.rate)[0];
+
+let luck=[...arr].sort((a,b)=>b.win-a.win)[0];
+
+let clown=[...arr].sort((a,b)=>a.rate-b.rate)[0];
+
+document.getElementById("awards").innerHTML=
+`👑 Vua tỷ lệ thắng: ${king?.name||"N/A"}<br>
+🎲 Thánh nhân phẩm: ${luck?.name||"N/A"}<br>
+🤡 Ông hoàng đen đủi: ${clown?.name||"N/A"}`;
 }
 
 /* ================= RENDER ================= */
 
 function render(){
 
-state=safe(state);
+document.getElementById("remain").innerText =
+"Còn lại: " + (state.remaining||[]).join(", ");
 
 /* dropdown */
 let sel=document.getElementById("player");
@@ -278,26 +304,49 @@ Object.entries(state.draws).forEach(([p,n])=>{
 document.getElementById("teamA").innerHTML=A.join("<br>");
 document.getElementById("teamB").innerHTML=B.join("<br>");
 
-/* LED BOARD */
-document.getElementById("liveBoard").innerHTML=
-Object.entries(state.draws)
-.map(([p,n])=>`🔵 ${p}: ${n}`)
-.join("<br>");
-
-/* remain */
-document.getElementById("remain").innerText=
-"Còn lại: "+state.remaining.join(", ");
-
 /* history */
-document.getElementById("history").innerHTML=
+document.getElementById("history").innerHTML =
 (state.history||[]).map(h=>
 `<div>${h.date} | ${h.stage} | ${h.score}</div>`
 ).join("");
+
+let stats=calcStats();
+renderAwards(stats);
+
+/* ranking */
+let arr=Object.entries(stats).map(([name,v])=>({
+name,...v,
+rate:v.played?(v.win/v.played)*100:0
+}));
+
+arr.sort((a,b)=>b.rate-a.rate);
+
+document.getElementById("ranking").innerHTML=
+"<table><tr><th>Tên</th><th>Trận</th><th>Win</th><th>%</th></tr>"+
+arr.map(r=>
+`<tr><td>${r.name}</td><td>${r.played}</td><td>${r.win}</td><td>${r.rate.toFixed(1)}</td></tr>`
+).join("")+
+"</table>";
+}
+
+/* ================= ADMIN RESET ================= */
+
+function askReset(){
+let code=prompt("Nhập mã ADMIN để reset mùa:");
+if(code===ADMIN_CODE){
+resetDraw();
+save();
+render();
+alert("✔ Reset thành công!");
+}else{
+alert("❌ Sai mã ADMIN!");
+}
 }
 
 /* expose */
 window.init=init;
 window.draw=draw;
+window.saveMatch=saveMatch;
 window.askReset=askReset;
 
 </script>
