@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WORLD CUP 2026 - HÊN VUI-XUI NỘP</title>
+<title>WORLD CUP 2026 - HÊN VUI - XUI NỘP</title>
 
 <style>
 body{
@@ -45,15 +45,6 @@ display:grid;
 grid-template-columns:1fr 1fr;
 gap:10px;
 }
-
-table{
-width:100%;
-border-collapse:collapse;
-}
-td,th{
-border:1px solid #475569;
-padding:6px;
-}
 </style>
 </head>
 
@@ -61,7 +52,7 @@ padding:6px;
 
 <div class="wrap">
 
-<h1>🏆 WORLD CUP 2026<br>🎬 GAME SHOW ONLINE</h1>
+<h1>🏆 WORLD CUP 2026<br>🔥 STABLE FIREBASE</h1>
 
 <div class="card">
 <input id="season" value="2026">
@@ -76,6 +67,7 @@ padding:6px;
 <button onclick="draw()">QUAY SỐ</button>
 
 <div id="drawResult">?</div>
+
 <div id="remain"></div>
 <div id="log"></div>
 </div>
@@ -93,59 +85,57 @@ padding:6px;
 </div>
 
 <div class="card">
-<h3>⚽ Trận đấu</h3>
-
-<select id="stage">
-<option>Vòng bảng</option>
-<option>Tứ kết</option>
-<option>Bán kết</option>
-<option>Chung kết</option>
-</select>
-
-A <input id="scoreA" type="number" value="0">
-B <input id="scoreB" type="number" value="0">
-
-<button onclick="saveMatch()">Lưu trận</button>
-<div id="msg"></div>
-</div>
-
-<div class="card">
 <h3>📜 Lịch sử</h3>
 <div id="history"></div>
 </div>
 
 </div>
 
-<!-- ================= FIREBASE SDK (NON-MODULE) ================= -->
+<!-- Firebase compat -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
-/* ================= FIREBASE CONFIG (ĐÃ GHÉP CỦA BẠN) ================= */
+
+/* ================= FIREBASE ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyBjS-Gsx1XVNpZ_68VyqFXTFryHzPkX90c",
   authDomain: "worldcup-1562a.firebaseapp.com",
   projectId: "worldcup-1562a",
   storageBucket: "worldcup-1562a.firebasestorage.app",
   messagingSenderId: "905947532699",
-  appId: "1:905947532699:web:1acc98e9bd3864b7d9a53e",
-  measurementId: "G-4KLBR8L2ZV"
+  appId: "1:905947532699:web:1acc98e9bd3864b7d9a53e"
 };
 
-/* init firebase */
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 /* ================= DATA ================= */
 
-const players=[
+const players = [
 "Thị Én","Trọng Mãnh","Dũng Đờ Mờ","Tuấn Ô Kê",
 "Thạch Dreamer","Chang Bonsai","Hoàng Alô",
 "Long Hecquyn","Hải Dớ","Thao Pig","Thủy Quái","Kiên LOL"
 ];
 
-let state = {};
+const BASE_STATE = () => ({
+draws: {},
+remaining: [1,2,3,4,5,6,7,8,9,10,11,12],
+history: []
+});
+
+let state = BASE_STATE();
 let season = "2026";
+
+/* ================= SAFE NORMALIZE ================= */
+
+function normalize(data){
+return {
+draws: data?.draws || {},
+remaining: data?.remaining || [],
+history: data?.history || []
+};
+}
 
 /* ================= INIT ================= */
 
@@ -157,31 +147,27 @@ const ref = db.collection("wc2026").doc(season);
 const doc = await ref.get();
 
 if(doc.exists){
-state = doc.data();
+state = normalize(doc.data());
 } else {
-state = {
-draws:{},
-remaining:[1,2,3,4,5,6,7,8,9,10,11,12],
-history:[]
-};
+state = BASE_STATE();
 await ref.set(state);
 }
 
-listenRealtime();
+listen();
 render();
 }
 
 /* ================= REALTIME ================= */
 
-function listenRealtime(){
+function listen(){
 
 const ref = db.collection("wc2026").doc(season);
 
 ref.onSnapshot(doc=>{
-if(doc.exists){
-state = doc.data();
+if(!doc.exists) return;
+
+state = normalize(doc.data());
 render();
-}
 });
 }
 
@@ -192,7 +178,7 @@ const ref = db.collection("wc2026").doc(season);
 return ref.set(state);
 }
 
-/* ================= DRAW GAME SHOW ================= */
+/* ================= DRAW ================= */
 
 function draw(){
 
@@ -214,6 +200,11 @@ i++;
 if(i > 25){
 clearInterval(timer);
 
+if(!state.remaining || state.remaining.length === 0){
+alert("Hết số để quay!");
+return;
+}
+
 const idx = Math.floor(Math.random()*state.remaining.length);
 const n = state.remaining.splice(idx,1)[0];
 
@@ -229,78 +220,63 @@ render();
 },70);
 }
 
-/* ================= MATCH ================= */
-
-function saveMatch(){
-
-const a = +document.getElementById("scoreA").value;
-const b = +document.getElementById("scoreB").value;
-const stage = document.getElementById("stage").value;
-
-state.history.push({
-date:new Date().toLocaleString(),
-stage,
-score:`${a}-${b}`
-});
-
-save();
-render();
-
-document.getElementById("msg").innerText="✔ Đã lưu trận";
-}
-
 /* ================= TEAM ================= */
 
 function showTeams(){
 
-let A=[],B=[];
+let A=[], B=[];
 
 Object.entries(state.draws).forEach(([p,n])=>{
-(n<=6 ? A : B).push(`${p} (${n})`);
+(n <= 6 ? A : B).push(`${p} (${n})`);
 });
 
 document.getElementById("teamA").innerHTML = A.join("<br>");
 document.getElementById("teamB").innerHTML = B.join("<br>");
 }
 
-/* ================= RENDER ================= */
+/* ================= RENDER (FIX CORE BUG) ================= */
 
 function render(){
 
-document.getElementById("remain").innerText =
-"Còn lại: " + (state.remaining||[]).join(", ");
+state = normalize(state);
 
+/* luôn đảm bảo dropdown đủ 12 người */
 const sel = document.getElementById("player");
-sel.innerHTML="";
+sel.innerHTML = "";
 
 players.forEach(p=>{
-if(!state.draws[p]){
-let o=document.createElement("option");
-o.value=p;
-o.textContent=p;
-sel.appendChild(o);
+if(!(p in state.draws)){
+const opt = document.createElement("option");
+opt.value = p;
+opt.textContent = p;
+sel.appendChild(opt);
 }
 });
 
-document.getElementById("history").innerHTML =
-(state.history||[]).slice().reverse()
-.map(h=>`<div>${h.date} | ${h.stage} | ${h.score}</div>`)
-.join("");
+/* remaining */
+document.getElementById("remain").innerText =
+"Còn lại: " + (state.remaining || []).join(", ");
 
-if(Object.keys(state.draws||{}).length===12){
+/* history */
+document.getElementById("history").innerHTML =
+(state.history || [])
+.slice()
+.reverse()
+.map(h=>`<div>${h.date} | ${h.stage} | ${h.score}</div>`)
+.join(" ");
+
+/* teams */
+if(Object.keys(state.draws).length === 12){
 showTeams();
 }
+
 }
 
 /* ================= RESET ================= */
 
 async function resetAll(){
 
-state = {
-draws:{},
-remaining:[1,2,3,4,5,6,7,8,9,10,11,12],
-history:[]
-};
+state = BASE_STATE();
 
 await save();
 render();
@@ -309,7 +285,6 @@ render();
 /* expose */
 window.init = init;
 window.draw = draw;
-window.saveMatch = saveMatch;
 window.resetAll = resetAll;
 
 </script>
