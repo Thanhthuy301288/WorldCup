@@ -6,13 +6,7 @@
 <title>WORLD CUP 2026 - HÊN VUI XUI NỘP</title>
 
 <style>
-body{
-font-family:Arial;
-background:#0f172a;
-color:#fff;
-margin:0;
-padding:20px;
-}
+body{font-family:Arial;background:#0f172a;color:#fff;margin:0;padding:20px}
 .wrap{max-width:1200px;margin:auto}
 .card{background:#1e293b;padding:15px;margin:12px 0;border-radius:12px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -26,12 +20,14 @@ h1{text-align:center}
 <body>
 <div class="wrap">
 
-<h1>🏆 WORLD CUP 2026 - PRO SYSTEM</h1>
+<h1>🏆 WORLD CUP 2026 - FINAL SYSTEM</h1>
 
 <div class="card">
 <input id="season" value="2026">
 <button onclick="init()">Mở mùa</button>
-<button onclick="newSeason()">Reset mùa (giữ data cũ)</button>
+
+<!-- 🔐 RESET BỊ KHÓA -->
+<button onclick="askReset()">Reset mùa (ADMIN)</button>
 </div>
 
 <div class="card">
@@ -55,6 +51,7 @@ h1{text-align:center}
 
 <div class="card">
 <h3>⚽ Kết quả trận</h3>
+
 <select id="stage">
 <option>Vòng bảng</option>
 <option>Tứ kết</option>
@@ -104,7 +101,9 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-/* ================= DATA ================= */
+/* ================= CONFIG ================= */
+
+const ADMIN_CODE = "luonleo";
 
 const players=[
 "Thị Én","Trọng Mãnh","Dũng Đờ Mờ","Tuấn Ô Kê",
@@ -129,11 +128,7 @@ season=document.getElementById("season").value;
 const ref=db.collection("wc2026").doc(season);
 const doc=await ref.get();
 
-if(doc.exists){
-state=doc.data();
-} else {
-await ref.set(state);
-}
+state = doc.exists ? doc.data() : state;
 
 listen();
 render();
@@ -204,9 +199,20 @@ draws:JSON.parse(JSON.stringify(state.draws))
 });
 
 save();
-render();
 
-document.getElementById("msg").innerText="✔ Đã lưu trận";
+/* 🔁 RESET TỰ ĐỘNG SAU MỖI TRẬN */
+resetDraw();
+
+document.getElementById("msg").innerText="✔ Đã lưu & reset vòng bốc thăm";
+
+render();
+}
+
+/* ================= RESET DRAW ONLY ================= */
+
+function resetDraw(){
+state.draws = {};
+state.remaining = [1,2,3,4,5,6,7,8,9,10,11,12];
 }
 
 /* ================= STATS ================= */
@@ -251,26 +257,19 @@ return s;
 function renderAwards(stats){
 
 let arr=Object.entries(stats).map(([name,v])=>({
-name,
-...v,
-rate:v.played? (v.win/v.played)*100:0
+name,...v,
+rate:v.played?(v.win/v.played)*100:0
 }));
 
-// 👑 Vua tỷ lệ thắng (min 2 trận)
-let king=[...arr]
-.filter(x=>x.played>=2)
+let king=[...arr].filter(x=>x.played>=2)
 .sort((a,b)=>b.rate-a.rate)[0];
 
-// 🎲 Thánh nhân phẩm
 let luck=[...arr].sort((a,b)=>b.win-a.win)[0];
 
-// 🤡 đen đủi
-let clown=[...arr].sort((a,b)=>
-(a.rate + a.win) - (b.rate + b.win)
-)[0];
+let clown=[...arr].sort((a,b)=>a.rate-b.rate)[0];
 
 document.getElementById("awards").innerHTML=
-`👑 Vua tỷ lệ thắng: ${king?.name||"N/A"} (${king?.rate.toFixed(1)||0}%)<br>
+`👑 Vua tỷ lệ thắng: ${king?.name||"N/A"}<br>
 🎲 Thánh nhân phẩm: ${luck?.name||"N/A"}<br>
 🤡 Ông hoàng đen đủi: ${clown?.name||"N/A"}`;
 }
@@ -282,7 +281,7 @@ function render(){
 document.getElementById("remain").innerText =
 "Còn lại: " + (state.remaining||[]).join(", ");
 
-/* player list */
+/* dropdown */
 let sel=document.getElementById("player");
 sel.innerHTML="";
 
@@ -311,7 +310,6 @@ document.getElementById("history").innerHTML =
 `<div>${h.date} | ${h.stage} | ${h.score}</div>`
 ).join("");
 
-/* stats + awards */
 let stats=calcStats();
 renderAwards(stats);
 
@@ -329,30 +327,27 @@ arr.map(r=>
 `<tr><td>${r.name}</td><td>${r.played}</td><td>${r.win}</td><td>${r.rate.toFixed(1)}</td></tr>`
 ).join("")+
 "</table>";
-
 }
 
-/* ================= NEW SEASON ================= */
+/* ================= ADMIN RESET ================= */
 
-function newSeason(){
-
-season=document.getElementById("season").value+"_new";
-
-state={
-draws:{},
-remaining:[1,2,3,4,5,6,7,8,9,10,11,12],
-history:[]
-};
-
+function askReset(){
+let code=prompt("Nhập mã ADMIN để reset mùa:");
+if(code===ADMIN_CODE){
+resetDraw();
 save();
 render();
+alert("✔ Reset thành công!");
+}else{
+alert("❌ Sai mã ADMIN!");
+}
 }
 
 /* expose */
 window.init=init;
 window.draw=draw;
 window.saveMatch=saveMatch;
-window.newSeason=newSeason;
+window.askReset=askReset;
 
 </script>
 
