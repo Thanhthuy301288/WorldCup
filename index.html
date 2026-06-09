@@ -168,7 +168,14 @@ stats:{}
 };
 
 let season = "2026";
-
+function safeState(s){
+return {
+draws: s?.draws || {},
+remaining: s?.remaining || [1,2,3,4,5,6,7,8,9,10,11,12],
+history: s?.history || [],
+stats: s?.stats || {}
+};
+}
 /* ================= FIREBASE LOAD ================= */
 
 async function loadData(){
@@ -179,8 +186,9 @@ const ref = doc(db,"wc2026",season);
 const snap = await getDoc(ref);
 
 if(snap.exists()){
-state = snap.data();
+state = safeState(snap.data());
 } else {
+state = safeState(state);
 await setDoc(ref,state);
 }
 
@@ -193,7 +201,7 @@ const ref = doc(db,"wc2026",season);
 
 onSnapshot(ref,(snap)=>{
 if(snap.exists()){
-state = snap.data();
+state = safeState(snap.data());
 render();
 }
 });
@@ -237,7 +245,8 @@ state.draws[p] = n;
 document.getElementById("log").innerHTML +=
 `<div>${p} → ${n}</div>`;
 
-sel.remove(sel.selectedIndex);
+// KHÔNG xóa option nữa
+// dropdown sẽ tự cập nhật khi render()
 
 if(state.remaining.length === 0){
 showTeams();
@@ -288,19 +297,20 @@ document.getElementById("msg").innerText="✔ Đã lưu trận";
 
 function render(){
 
-/* remaining */
+function render(){
+
 document.getElementById("remain").innerText =
 "Còn lại: " + (state.remaining || []).join(", ");
 
-/* player list */
+/* 🔥 FIX DROPDOWN - LUÔN 12 NGƯỜI */
 const sel = document.getElementById("player");
-sel.innerHTML="";
+sel.innerHTML = "";
 
 players.forEach(p=>{
-if(!state.draws[p]){
-let o=document.createElement("option");
-o.value=p;
-o.textContent=p;
+if(!state.draws || !state.draws[p]){
+let o = document.createElement("option");
+o.value = p;
+o.textContent = p;
 sel.appendChild(o);
 }
 });
